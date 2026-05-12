@@ -1,5 +1,6 @@
 import type { McpCatalogFormValues } from "./mcp-catalog-form.types";
 import {
+  parseArgumentsString,
   transformCatalogItemToFormValues,
   transformExternalCatalogToFormValues,
   transformFormToApiData,
@@ -858,5 +859,59 @@ describe("transformFormToApiData - secret env var preservation", () => {
     expect(env[0]).toMatchObject({ key: "EDITED", value: "fresh" });
     expect(env[1]?.key).toBe("UNTOUCHED");
     expect(env[1]?.value ?? "").toBe("");
+  });
+});
+
+describe("parseArgumentsString", () => {
+  it("splits newline-separated arguments", () => {
+    expect(parseArgumentsString("/path/to/server.js\n--verbose")).toEqual([
+      "/path/to/server.js",
+      "--verbose",
+    ]);
+  });
+
+  it("trims whitespace and skips blank lines", () => {
+    expect(parseArgumentsString("  arg1  \n\n  arg2  \n")).toEqual([
+      "arg1",
+      "arg2",
+    ]);
+  });
+
+  it("parses a JSON array of strings", () => {
+    expect(
+      parseArgumentsString('["--port", "8080", "--verbose"]'),
+    ).toEqual(["--port", "8080", "--verbose"]);
+  });
+
+  it("parses a JSON array with leading/trailing whitespace", () => {
+    expect(parseArgumentsString('  ["a", "b"]  ')).toEqual(["a", "b"]);
+  });
+
+  it("filters empty strings from JSON arrays", () => {
+    expect(parseArgumentsString('["arg1", "", "arg2"]')).toEqual([
+      "arg1",
+      "arg2",
+    ]);
+  });
+
+  it("falls back to newline split when JSON array is malformed", () => {
+    // Malformed: missing closing bracket
+    expect(parseArgumentsString('["--port", "8080"')).toEqual([
+      '["--port", "8080"',
+    ]);
+  });
+
+  it("falls back to newline split when input is a JSON object (not an array)", () => {
+    expect(parseArgumentsString('{"key": "value"}')).toEqual([
+      '{"key": "value"}',
+    ]);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(parseArgumentsString("")).toEqual([]);
+  });
+
+  it("returns empty array for whitespace-only input", () => {
+    expect(parseArgumentsString("   \n\n  ")).toEqual([]);
   });
 });

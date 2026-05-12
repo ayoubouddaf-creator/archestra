@@ -34,12 +34,12 @@ export function transformFormToApiData(
 
   // Handle local configuration
   if (values.serverType === "local" && values.localConfig) {
-    // Parse arguments string into array
+    // Parse arguments string into array.
+    // Supports two formats:
+    //   1. JSON array:       ["arg1", "arg2"]  (e.g. pasted from Claude Desktop config)
+    //   2. One arg per line: arg1\narg2
     const argumentsArray = values.localConfig.arguments
-      ? values.localConfig.arguments
-          .split("\n")
-          .map((arg) => arg.trim())
-          .filter((arg) => arg.length > 0)
+      ? parseArgumentsString(values.localConfig.arguments)
       : [];
 
     data.localConfig = {
@@ -834,6 +834,37 @@ function getAdditionalHeaderFieldName(params: {
   }
 
   return `${baseFieldName}_${index + 1}`;
+}
+
+/**
+ * Parse an arguments string into an array of argument strings.
+ *
+ * Accepts two formats:
+ *  1. JSON array  — `["--port", "8080"]`   (common in Claude Desktop / MCP configs)
+ *  2. One per line — `--port\n8080`        (original format)
+ *
+ * If the input looks like a JSON array but is malformed, falls back to
+ * one-per-line parsing so the user sees their raw text rather than an error.
+ */
+export function parseArgumentsString(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "string")
+      ) {
+        return (parsed as string[]).filter((s) => s.length > 0);
+      }
+    } catch {
+      // Malformed JSON — fall through to newline split
+    }
+  }
+  return trimmed
+    .split("\n")
+    .map((arg) => arg.trim())
+    .filter((arg) => arg.length > 0);
 }
 
 function getHeaderMappedUserConfigEntries(

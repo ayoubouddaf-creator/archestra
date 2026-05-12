@@ -999,16 +999,23 @@ export function McpCatalogForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Arguments (one per line)
+                          Arguments
                           <ReinstallHint show={isArgumentsDirty} />
                         </FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder={`/path/to/server.js\n--verbose`}
+                            placeholder={`/path/to/server.js\n--verbose\n\nor as a JSON array:\n["--port", "8080"]`}
                             className="font-mono min-h-20"
                             {...field}
                           />
                         </FormControl>
+                        <FormDescription>
+                          One argument per line, or a JSON array (e.g.{" "}
+                          <code className="text-xs">
+                            {"[\"--port\", \"8080\"]"}
+                          </code>
+                          ).
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
