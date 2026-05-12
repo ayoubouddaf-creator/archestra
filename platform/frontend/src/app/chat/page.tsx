@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Bot,
+  CalendarClock,
   CornerDownLeftIcon,
   FileText,
   Globe,
@@ -38,6 +39,7 @@ import { AppLogo } from "@/components/app-logo";
 import { ButtonWithTooltip } from "@/components/button-with-tooltip";
 import { BrowserPanel } from "@/components/chat/browser-panel";
 import { ChatLinkButton } from "@/components/chat/chat-help-link";
+import { ConvertToScheduledTaskDialog } from "@/components/chat/convert-to-scheduled-task-dialog";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { ConversationArtifactPanel } from "@/components/chat/conversation-artifact";
 import { InitialAgentSelector } from "@/components/chat/initial-agent-selector";
@@ -202,6 +204,7 @@ export function ChatPageContent({
   >(undefined);
 
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [isForkDialogOpen, setIsForkDialogOpen] = useState(false);
   const [forkAgentId, setForkAgentId] = useState<string | null>(null);
   const forkConversationMutation = useForkConversation();
@@ -238,6 +241,9 @@ export function ChatPageContent({
   });
   const { data: canUpdateAgent } = useHasPermissions({
     agent: ["team-admin"],
+  });
+  const { data: canCreateScheduledTask } = useHasPermissions({
+    scheduledTask: ["create"],
   });
   const { data: canSeeAgentPicker, isLoading: isAgentPickerPermissionLoading } =
     useHasPermissions({
@@ -543,6 +549,19 @@ export function ChatPageContent({
     !!conversationId &&
     !!conversation &&
     conversation.userId === session?.user.id;
+
+  // Extract the last user message text for pre-filling the scheduled task dialog
+  const lastUserMessageText = useMemo(() => {
+    const msgs = conversation?.messages ?? [];
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const msg = msgs[i] as { role?: string; parts?: Array<{ type: string; text?: string }> };
+      if (msg.role === "user") {
+        const textParts = (msg.parts ?? []).filter((p) => p.type === "text");
+        return textParts.map((p) => p.text ?? "").join("\n").trim();
+      }
+    }
+    return "";
+  }, [conversation?.messages]);
   useConversationShare(canManageShare ? conversationId : undefined);
   const isShared = !!conversation?.share;
   const isReadOnlyConversation =
@@ -1628,6 +1647,20 @@ export function ChatPageContent({
               )}
               {/* Right side - desktop: original buttons */}
               <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+                {canCreateScheduledTask && conversationId && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsScheduleDialogOpen(true)}
+                      className="text-xs"
+                    >
+                      <CalendarClock className="h-3 w-3 mr-1" />
+                      Schedule
+                    </Button>
+                    <div className="w-px h-4 bg-border" />
+                  </>
+                )}
                 {canManageShare && (
                   <Button
                     variant="ghost"
@@ -1694,6 +1727,14 @@ export function ChatPageContent({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {canCreateScheduledTask && conversationId && (
+                      <DropdownMenuItem
+                        onSelect={() => setIsScheduleDialogOpen(true)}
+                      >
+                        <CalendarClock className="h-4 w-4" />
+                        Schedule
+                      </DropdownMenuItem>
+                    )}
                     {canManageShare && (
                       <DropdownMenuItem
                         onSelect={() => setIsShareDialogOpen(true)}
@@ -2131,6 +2172,20 @@ export function ChatPageContent({
           conversationId={conversationId}
           open={isShareDialogOpen}
           onOpenChange={setIsShareDialogOpen}
+        />
+      )}
+
+      {conversationId && (
+        <ConvertToScheduledTaskDialog
+          open={isScheduleDialogOpen}
+          onOpenChange={setIsScheduleDialogOpen}
+          agentId={conversationAgentId ?? initialAgentId}
+          initialMessage={lastUserMessageText}
+          agentName={
+            conversationAgentId
+              ? internalAgents.find((a) => a.id === conversationAgentId)?.name
+              : internalAgents.find((a) => a.id === initialAgentId)?.name
+          }
         />
       )}
 
