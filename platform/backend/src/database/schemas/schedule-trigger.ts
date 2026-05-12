@@ -32,6 +32,7 @@ const scheduleTriggersTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
   },
   (table) => [
     index("schedule_triggers_agent_id_idx").on(table.agentId),

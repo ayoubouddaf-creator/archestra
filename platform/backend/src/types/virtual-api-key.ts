@@ -28,6 +28,7 @@ export const InsertVirtualApiKeySchema = createInsertSchema(
     id: true,
     createdAt: true,
     lastUsedAt: true,
+    deletedAt: true,
   })
   .extend({
     scope: ResourceVisibilityScopeSchema.optional(),

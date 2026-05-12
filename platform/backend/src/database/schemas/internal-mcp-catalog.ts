@@ -81,6 +81,7 @@ const internalMcpCatalogTable = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
   },
   (table) => ({
     organizationIdIdx: index("internal_mcp_catalog_organization_id_idx").on(

@@ -49,6 +49,7 @@ const llmProviderApiKeysTable = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
   },
   (table) => [
     // Index for efficient lookups by organization

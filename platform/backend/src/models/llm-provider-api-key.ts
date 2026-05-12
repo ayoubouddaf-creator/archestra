@@ -4,7 +4,7 @@ import {
   parseVaultReference,
   type SupportedProvider,
 } from "@shared";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { isAzureOpenAiEntraIdEnabled } from "@/clients/azure-openai-credentials";
 import db, { schema } from "@/database";
 import { computeSecretStorageType } from "@/secrets-manager/utils";
@@ -41,7 +41,12 @@ class LlmProviderApiKeyModel {
     const [apiKey] = await db
       .select()
       .from(schema.llmProviderApiKeysTable)
-      .where(eq(schema.llmProviderApiKeysTable.id, id));
+      .where(
+        and(
+          eq(schema.llmProviderApiKeysTable.id, id),
+          isNull(schema.llmProviderApiKeysTable.deletedAt),
+        ),
+      );
 
     return apiKey ?? null;
   }
@@ -54,7 +59,12 @@ class LlmProviderApiKeyModel {
     return db
       .select()
       .from(schema.llmProviderApiKeysTable)
-      .where(inArray(schema.llmProviderApiKeysTable.id, ids));
+      .where(
+        and(
+          inArray(schema.llmProviderApiKeysTable.id, ids),
+          isNull(schema.llmProviderApiKeysTable.deletedAt),
+        ),
+      );
   }
 
   /**
@@ -66,7 +76,12 @@ class LlmProviderApiKeyModel {
     const apiKeys = await db
       .select()
       .from(schema.llmProviderApiKeysTable)
-      .where(eq(schema.llmProviderApiKeysTable.organizationId, organizationId))
+      .where(
+        and(
+          eq(schema.llmProviderApiKeysTable.organizationId, organizationId),
+          isNull(schema.llmProviderApiKeysTable.deletedAt),
+        ),
+      )
       .orderBy(schema.llmProviderApiKeysTable.createdAt);
 
     return apiKeys;
@@ -92,6 +107,7 @@ class LlmProviderApiKeyModel {
     // Build conditions based on visibility rules
     const conditions = [
       eq(schema.llmProviderApiKeysTable.organizationId, organizationId),
+      isNull(schema.llmProviderApiKeysTable.deletedAt),
     ];
 
     if (isAgentAdmin) {
@@ -574,12 +590,18 @@ class LlmProviderApiKeyModel {
   }
 
   /**
-   * Delete an LLM provider API key.
+   * Delete an LLM provider API key (soft delete).
    */
   static async delete(id: string): Promise<boolean> {
     const result = await db
-      .delete(schema.llmProviderApiKeysTable)
-      .where(eq(schema.llmProviderApiKeysTable.id, id))
+      .update(schema.llmProviderApiKeysTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.llmProviderApiKeysTable.id, id),
+          isNull(schema.llmProviderApiKeysTable.deletedAt),
+        ),
+      )
       .returning({ id: schema.llmProviderApiKeysTable.id });
 
     return result.length > 0;
@@ -592,7 +614,12 @@ class LlmProviderApiKeyModel {
     const [result] = await db
       .select({ id: schema.llmProviderApiKeysTable.id })
       .from(schema.llmProviderApiKeysTable)
-      .where(eq(schema.llmProviderApiKeysTable.organizationId, organizationId))
+      .where(
+        and(
+          eq(schema.llmProviderApiKeysTable.organizationId, organizationId),
+          isNull(schema.llmProviderApiKeysTable.deletedAt),
+        ),
+      )
       .limit(1);
 
     return !!result;
@@ -613,6 +640,7 @@ class LlmProviderApiKeyModel {
           eq(schema.llmProviderApiKeysTable.organizationId, organizationId),
           eq(schema.llmProviderApiKeysTable.provider, provider),
           sql`${schema.llmProviderApiKeysTable.secretId} IS NOT NULL`,
+          isNull(schema.llmProviderApiKeysTable.deletedAt),
         ),
       )
       .limit(1);

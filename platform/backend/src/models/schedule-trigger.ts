@@ -6,6 +6,7 @@ import {
   eq,
   ilike,
   inArray,
+  isNull,
   ne,
   type SQL,
 } from "drizzle-orm";
@@ -109,7 +110,12 @@ class ScheduleTriggerModel {
         schema.agentsTable,
         eq(schema.scheduleTriggersTable.agentId, schema.agentsTable.id),
       )
-      .where(eq(schema.scheduleTriggersTable.id, id));
+      .where(
+        and(
+          eq(schema.scheduleTriggersTable.id, id),
+          isNull(schema.scheduleTriggersTable.deletedAt),
+        ),
+      );
 
     return trigger ?? null;
   }
@@ -155,8 +161,14 @@ class ScheduleTriggerModel {
 
   static async delete(id: string): Promise<boolean> {
     const result = await db
-      .delete(schema.scheduleTriggersTable)
-      .where(eq(schema.scheduleTriggersTable.id, id));
+      .update(schema.scheduleTriggersTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.scheduleTriggersTable.id, id),
+          isNull(schema.scheduleTriggersTable.deletedAt),
+        ),
+      );
 
     return (result.rowCount ?? 0) > 0;
   }
@@ -177,7 +189,12 @@ class ScheduleTriggerModel {
         schema.agentsTable,
         eq(schema.scheduleTriggersTable.agentId, schema.agentsTable.id),
       )
-      .where(eq(schema.scheduleTriggersTable.enabled, true));
+      .where(
+        and(
+          eq(schema.scheduleTriggersTable.enabled, true),
+          isNull(schema.scheduleTriggersTable.deletedAt),
+        ),
+      );
 
     const dueTriggers: ScheduleTrigger[] = [];
     for (const trigger of enabledTriggers) {
@@ -235,6 +252,7 @@ function buildListFilters(
 
   const filters: SQL[] = [
     eq(schema.scheduleTriggersTable.organizationId, params.organizationId),
+    isNull(schema.scheduleTriggersTable.deletedAt),
   ];
 
   if (params.enabled !== undefined) {

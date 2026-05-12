@@ -20,7 +20,7 @@ export const SelectKnowledgeBaseSchema = createSelectSchema(
 );
 export const InsertKnowledgeBaseSchema = createInsertSchema(
   schema.knowledgeBasesTable,
-).omit({ id: true, createdAt: true, updatedAt: true });
+).omit({ id: true, createdAt: true, updatedAt: true, deletedAt: true });
 export const UpdateKnowledgeBaseSchema = createUpdateSchema(
   schema.knowledgeBasesTable,
 ).pick({

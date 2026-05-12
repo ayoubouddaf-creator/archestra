@@ -38,6 +38,7 @@ const toolInvocationPoliciesTable = pgTable("tool_invocation_policies", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+  deletedAt: timestamp("deleted_at", { mode: "date" }),
 });
 
 export default toolInvocationPoliciesTable;

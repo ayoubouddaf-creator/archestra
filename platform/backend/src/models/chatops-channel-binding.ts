@@ -83,6 +83,8 @@ class ChatOpsChannelBindingModel {
       conditions.push(isNull(schema.chatopsChannelBindingsTable.workspaceId));
     }
 
+    conditions.push(isNull(schema.chatopsChannelBindingsTable.deletedAt));
+
     const [binding] = await db
       .select()
       .from(schema.chatopsChannelBindingsTable)
@@ -99,7 +101,12 @@ class ChatOpsChannelBindingModel {
     const [binding] = await db
       .select()
       .from(schema.chatopsChannelBindingsTable)
-      .where(eq(schema.chatopsChannelBindingsTable.id, id));
+      .where(
+        and(
+          eq(schema.chatopsChannelBindingsTable.id, id),
+          isNull(schema.chatopsChannelBindingsTable.deletedAt),
+        ),
+      );
 
     return (binding as ChatOpsChannelBinding) || null;
   }
@@ -118,6 +125,7 @@ class ChatOpsChannelBindingModel {
         and(
           eq(schema.chatopsChannelBindingsTable.id, id),
           eq(schema.chatopsChannelBindingsTable.organizationId, organizationId),
+          isNull(schema.chatopsChannelBindingsTable.deletedAt),
         ),
       );
 
@@ -134,7 +142,10 @@ class ChatOpsChannelBindingModel {
       .select()
       .from(schema.chatopsChannelBindingsTable)
       .where(
-        eq(schema.chatopsChannelBindingsTable.organizationId, organizationId),
+        and(
+          eq(schema.chatopsChannelBindingsTable.organizationId, organizationId),
+          isNull(schema.chatopsChannelBindingsTable.deletedAt),
+        ),
       )
       .orderBy(desc(schema.chatopsChannelBindingsTable.createdAt));
 
@@ -272,7 +283,12 @@ class ChatOpsChannelBindingModel {
     const bindings = await db
       .select()
       .from(schema.chatopsChannelBindingsTable)
-      .where(eq(schema.chatopsChannelBindingsTable.agentId, agentId))
+      .where(
+        and(
+          eq(schema.chatopsChannelBindingsTable.agentId, agentId),
+          isNull(schema.chatopsChannelBindingsTable.deletedAt),
+        ),
+      )
       .orderBy(desc(schema.chatopsChannelBindingsTable.createdAt));
 
     return bindings as ChatOpsChannelBinding[];
@@ -510,8 +526,14 @@ class ChatOpsChannelBindingModel {
    */
   static async delete(id: string): Promise<boolean> {
     const result = await db
-      .delete(schema.chatopsChannelBindingsTable)
-      .where(eq(schema.chatopsChannelBindingsTable.id, id));
+      .update(schema.chatopsChannelBindingsTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.chatopsChannelBindingsTable.id, id),
+          isNull(schema.chatopsChannelBindingsTable.deletedAt),
+        ),
+      );
 
     return (result.rowCount ?? 0) > 0;
   }
@@ -524,11 +546,13 @@ class ChatOpsChannelBindingModel {
     organizationId: string,
   ): Promise<boolean> {
     const result = await db
-      .delete(schema.chatopsChannelBindingsTable)
+      .update(schema.chatopsChannelBindingsTable)
+      .set({ deletedAt: new Date() })
       .where(
         and(
           eq(schema.chatopsChannelBindingsTable.id, id),
           eq(schema.chatopsChannelBindingsTable.organizationId, organizationId),
+          isNull(schema.chatopsChannelBindingsTable.deletedAt),
         ),
       );
 

@@ -5,6 +5,7 @@ import {
   getTableColumns,
   ilike,
   isNotNull,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
@@ -80,6 +81,7 @@ class ConversationModel {
     const conditions = [
       eq(schema.conversationsTable.userId, userId),
       eq(schema.conversationsTable.organizationId, organizationId),
+      isNull(schema.conversationsTable.deletedAt),
     ];
 
     // Add search filter if provided
@@ -301,6 +303,7 @@ class ConversationModel {
           eq(schema.conversationsTable.id, id),
           eq(schema.conversationsTable.userId, userId),
           eq(schema.conversationsTable.organizationId, organizationId),
+          isNull(schema.conversationsTable.deletedAt),
         ),
       )
       .orderBy(schema.messagesTable.createdAt);
@@ -465,12 +468,14 @@ class ConversationModel {
     organizationId: string,
   ): Promise<void> {
     await db
-      .delete(schema.conversationsTable)
+      .update(schema.conversationsTable)
+      .set({ deletedAt: new Date() })
       .where(
         and(
           eq(schema.conversationsTable.id, id),
           eq(schema.conversationsTable.userId, userId),
           eq(schema.conversationsTable.organizationId, organizationId),
+          isNull(schema.conversationsTable.deletedAt),
         ),
       );
   }

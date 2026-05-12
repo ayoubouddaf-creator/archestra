@@ -129,6 +129,7 @@ const agentsTable = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
   },
   (table) => [
     uniqueIndex("agents_slug_idx")

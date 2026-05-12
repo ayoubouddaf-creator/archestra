@@ -4,7 +4,7 @@ import {
   type PaginationQuery,
   type SupportedProvider,
 } from "@shared";
-import { and, count, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import db, { schema } from "@/database";
 import type { PaginatedResult } from "@/database/utils/pagination";
 import { createPaginatedResult } from "@/database/utils/pagination";
@@ -269,7 +269,12 @@ class VirtualApiKeyModel {
     const [result] = await db
       .select()
       .from(schema.virtualApiKeysTable)
-      .where(eq(schema.virtualApiKeysTable.id, id))
+      .where(
+        and(
+          eq(schema.virtualApiKeysTable.id, id),
+          isNull(schema.virtualApiKeysTable.deletedAt),
+        ),
+      )
       .limit(1);
 
     return result ?? null;
@@ -305,15 +310,21 @@ class VirtualApiKeyModel {
   }
 
   /**
-   * Delete a virtual key and its associated secret.
+   * Delete a virtual key (soft delete). Secret is retained for audit purposes.
    */
   static async delete(id: string): Promise<boolean> {
     const virtualKey = await VirtualApiKeyModel.findById(id);
     if (!virtualKey) return false;
 
     await db
-      .delete(schema.virtualApiKeysTable)
-      .where(eq(schema.virtualApiKeysTable.id, id));
+      .update(schema.virtualApiKeysTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.virtualApiKeysTable.id, id),
+          isNull(schema.virtualApiKeysTable.deletedAt),
+        ),
+      );
 
     try {
       await secretManager().deleteSecret(virtualKey.secretId);
@@ -399,6 +410,7 @@ class VirtualApiKeyModel {
 
     const whereConditions = [
       eq(schema.virtualApiKeysTable.organizationId, organizationId),
+      isNull(schema.virtualApiKeysTable.deletedAt),
     ];
 
     if (!isAdmin) {
@@ -480,7 +492,12 @@ class VirtualApiKeyModel {
     const candidates = await db
       .select()
       .from(schema.virtualApiKeysTable)
-      .where(eq(schema.virtualApiKeysTable.tokenStart, tokenStart));
+      .where(
+        and(
+          eq(schema.virtualApiKeysTable.tokenStart, tokenStart),
+          isNull(schema.virtualApiKeysTable.deletedAt),
+        ),
+      );
 
     for (const virtualKey of candidates) {
       const secret = await secretManager().getSecret(virtualKey.secretId);

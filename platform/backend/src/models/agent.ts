@@ -71,6 +71,7 @@ class AgentModel {
         and(
           eq(schema.agentsTable.organizationId, organizationId),
           inArray(schema.agentsTable.id, agentIds),
+          isNull(schema.agentsTable.deletedAt),
         ),
       )
       .orderBy(desc(schema.agentsTable.createdAt));
@@ -405,6 +406,7 @@ class AgentModel {
   ): Promise<Agent[]> {
     const whereConditions: SQL[] = [
       eq(schema.agentsTable.organizationId, organizationId),
+      isNull(schema.agentsTable.deletedAt),
     ];
 
     if (options?.agentType !== undefined) {
@@ -491,6 +493,7 @@ class AgentModel {
     const whereConditions: SQL[] = [
       eq(schema.agentsTable.organizationId, organizationId),
       inArray(schema.agentsTable.id, accessibleAgentIds),
+      isNull(schema.agentsTable.deletedAt),
     ];
 
     if (options?.agentType !== undefined) {
@@ -620,6 +623,7 @@ class AgentModel {
           eq(schema.agentsTable.agentType, "agent"),
           eq(schema.agentsTable.builtIn, false),
           ne(schema.agentsTable.scope, "personal"),
+          isNull(schema.agentsTable.deletedAt),
         ),
       )
       .orderBy(asc(schema.agentsTable.name));
@@ -646,6 +650,7 @@ class AgentModel {
         and(
           eq(schema.agentsTable.agentType, "agent"),
           eq(schema.agentsTable.builtIn, false),
+          isNull(schema.agentsTable.deletedAt),
           or(
             ne(schema.agentsTable.scope, "personal"),
             and(
@@ -686,7 +691,7 @@ class AgentModel {
       AgentModel.getPersonalAgentPriorityOrderClauses(userId);
 
     // Build where clause for filters and access control
-    const whereConditions: SQL[] = [];
+    const whereConditions: SQL[] = [isNull(schema.agentsTable.deletedAt)];
 
     // Add name filter if provided
     if (filters?.name) {
@@ -1079,7 +1084,12 @@ class AgentModel {
     const [result] = await db
       .select({ id: schema.agentsTable.id })
       .from(schema.agentsTable)
-      .where(eq(schema.agentsTable.id, id))
+      .where(
+        and(
+          eq(schema.agentsTable.id, id),
+          isNull(schema.agentsTable.deletedAt),
+        ),
+      )
       .limit(1);
 
     return result !== undefined;
@@ -1185,7 +1195,12 @@ class AgentModel {
         schema.toolsTable,
         eq(schema.agentToolsTable.toolId, schema.toolsTable.id),
       )
-      .where(eq(schema.agentsTable.id, id));
+      .where(
+        and(
+          eq(schema.agentsTable.id, id),
+          isNull(schema.agentsTable.deletedAt),
+        ),
+      );
 
     if (rows.length === 0) {
       return null;
@@ -1552,8 +1567,14 @@ class AgentModel {
 
   static async delete(id: string): Promise<boolean> {
     const rows = await db
-      .delete(schema.agentsTable)
-      .where(eq(schema.agentsTable.id, id))
+      .update(schema.agentsTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.agentsTable.id, id),
+          isNull(schema.agentsTable.deletedAt),
+        ),
+      )
       .returning({ id: schema.agentsTable.id });
     return rows.length > 0;
   }
@@ -1630,6 +1651,7 @@ class AgentModel {
           eq(schema.agentsTable.authorId, userId),
           eq(schema.agentsTable.agentType, "mcp_gateway"),
           eq(schema.agentsTable.isPersonalGateway, true),
+          isNull(schema.agentsTable.deletedAt),
         ),
       )
       .limit(1);
@@ -1804,9 +1826,12 @@ class AgentModel {
       .select({ id: schema.agentsTable.id })
       .from(schema.agentsTable)
       .where(
-        or(
-          sql`${schema.agentsTable.id}::text = ${idOrSlug}`,
-          eq(schema.agentsTable.slug, idOrSlug),
+        and(
+          or(
+            sql`${schema.agentsTable.id}::text = ${idOrSlug}`,
+            eq(schema.agentsTable.slug, idOrSlug),
+          ),
+          isNull(schema.agentsTable.deletedAt),
         ),
       )
       .limit(1);

@@ -230,6 +230,7 @@ export const InsertAgentSchemaBase = createInsertSchema(
     slug: true,
     createdAt: true,
     updatedAt: true,
+    deletedAt: true,
     authorId: true,
     isPersonalGateway: true,
   });
@@ -260,6 +261,7 @@ export const UpdateAgentSchemaBase = createUpdateSchema(
     slug: true,
     createdAt: true,
     updatedAt: true,
+    deletedAt: true,
     authorId: true,
     isPersonalGateway: true,
   });

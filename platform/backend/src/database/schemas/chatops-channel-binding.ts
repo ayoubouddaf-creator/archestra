@@ -51,6 +51,7 @@ const chatopsChannelBindingsTable = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
   },
   (table) => [
     // Unique constraint: one binding per channel per provider

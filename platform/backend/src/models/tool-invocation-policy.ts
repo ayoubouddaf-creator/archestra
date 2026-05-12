@@ -6,7 +6,7 @@ import {
   TOOL_INVOCATION_NO_POLICY_UNTRUSTED_REASON,
   TOOL_INVOCATION_UNTRUSTED_CONTEXT_REASON,
 } from "@shared";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { get } from "lodash-es";
 import { archestraMcpBranding } from "@/archestra-mcp-server/branding";
 import db, { schema } from "@/database";
@@ -71,6 +71,7 @@ class ToolInvocationPolicyModel {
     return db
       .select()
       .from(schema.toolInvocationPoliciesTable)
+      .where(isNull(schema.toolInvocationPoliciesTable.deletedAt))
       .orderBy(desc(schema.toolInvocationPoliciesTable.createdAt));
   }
 
@@ -80,7 +81,12 @@ class ToolInvocationPolicyModel {
     const [policy] = await db
       .select()
       .from(schema.toolInvocationPoliciesTable)
-      .where(eq(schema.toolInvocationPoliciesTable.id, id));
+      .where(
+        and(
+          eq(schema.toolInvocationPoliciesTable.id, id),
+          isNull(schema.toolInvocationPoliciesTable.deletedAt),
+        ),
+      );
     return policy || null;
   }
 
@@ -116,8 +122,14 @@ class ToolInvocationPolicyModel {
     }
 
     const result = await db
-      .delete(schema.toolInvocationPoliciesTable)
-      .where(eq(schema.toolInvocationPoliciesTable.id, id))
+      .update(schema.toolInvocationPoliciesTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.toolInvocationPoliciesTable.id, id),
+          isNull(schema.toolInvocationPoliciesTable.deletedAt),
+        ),
+      )
       .returning({ id: schema.toolInvocationPoliciesTable.id });
 
     const deleted = result.length > 0;

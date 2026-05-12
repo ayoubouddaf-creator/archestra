@@ -29,6 +29,7 @@ export const InsertLlmProviderApiKeySchema = createInsertSchema(
     id: true,
     createdAt: true,
     updatedAt: true,
+    deletedAt: true,
   })
   .extend({
     provider: SupportedProvidersSchema,

@@ -66,6 +66,7 @@ const mcpServerTable = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
   },
   (table) => [index("mcp_server_scope_idx").on(table.scope)],
 );

@@ -240,8 +240,16 @@ class McpServerModel {
       }
 
       query = query.where(
-        inArray(schema.mcpServersTable.id, accessibleMcpServerIds),
+        and(
+          inArray(schema.mcpServersTable.id, accessibleMcpServerIds),
+          isNull(schema.mcpServersTable.deletedAt),
+        ),
       );
+    }
+
+    // Always exclude soft-deleted servers
+    if (!userId || isMcpServerAdmin) {
+      query = query.where(isNull(schema.mcpServersTable.deletedAt));
     }
 
     const results = await query;
@@ -332,7 +340,12 @@ class McpServerModel {
         schema.secretsTable,
         eq(schema.mcpServersTable.secretId, schema.secretsTable.id),
       )
-      .where(eq(schema.mcpServersTable.id, id));
+      .where(
+        and(
+          eq(schema.mcpServersTable.id, id),
+          isNull(schema.mcpServersTable.deletedAt),
+        ),
+      );
 
     if (!result) {
       return null;
@@ -385,7 +398,12 @@ class McpServerModel {
     return await db
       .select()
       .from(schema.mcpServersTable)
-      .where(eq(schema.mcpServersTable.catalogId, catalogId));
+      .where(
+        and(
+          eq(schema.mcpServersTable.catalogId, catalogId),
+          isNull(schema.mcpServersTable.deletedAt),
+        ),
+      );
   }
 
   static async findCustomServers(): Promise<McpServer[]> {
@@ -393,7 +411,12 @@ class McpServerModel {
     return await db
       .select()
       .from(schema.mcpServersTable)
-      .where(isNull(schema.mcpServersTable.catalogId));
+      .where(
+        and(
+          isNull(schema.mcpServersTable.catalogId),
+          isNull(schema.mcpServersTable.deletedAt),
+        ),
+      );
   }
 
   static async update(
@@ -509,11 +532,17 @@ class McpServerModel {
       }
     }
 
-    // Delete the MCP server from database
-    logger.info(`Deleting MCP server: ${mcpServer.name} with id: ${id}`);
+    // Soft-delete the MCP server from database
+    logger.info(`Soft-deleting MCP server: ${mcpServer.name} with id: ${id}`);
     const result = await db
-      .delete(schema.mcpServersTable)
-      .where(eq(schema.mcpServersTable.id, id));
+      .update(schema.mcpServersTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.mcpServersTable.id, id),
+          isNull(schema.mcpServersTable.deletedAt),
+        ),
+      );
 
     const deleted = result.rowCount !== null && result.rowCount > 0;
 

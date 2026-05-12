@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import db, { schema } from "@/database";
 import type {
   InsertKnowledgeBase,
@@ -16,6 +16,7 @@ class KnowledgeBaseModel {
     const normalizedSearch = params.search?.trim();
     const filters = [
       eq(schema.knowledgeBasesTable.organizationId, params.organizationId),
+      isNull(schema.knowledgeBasesTable.deletedAt),
       ...(normalizedSearch
         ? [
             or(
@@ -50,7 +51,12 @@ class KnowledgeBaseModel {
     const [result] = await db
       .select()
       .from(schema.knowledgeBasesTable)
-      .where(eq(schema.knowledgeBasesTable.id, id));
+      .where(
+        and(
+          eq(schema.knowledgeBasesTable.id, id),
+          isNull(schema.knowledgeBasesTable.deletedAt),
+        ),
+      );
 
     return result ?? null;
   }
@@ -60,7 +66,12 @@ class KnowledgeBaseModel {
     return await db
       .select()
       .from(schema.knowledgeBasesTable)
-      .where(inArray(schema.knowledgeBasesTable.id, ids));
+      .where(
+        and(
+          inArray(schema.knowledgeBasesTable.id, ids),
+          isNull(schema.knowledgeBasesTable.deletedAt),
+        ),
+      );
   }
 
   static async create(data: InsertKnowledgeBase): Promise<KnowledgeBase> {
@@ -87,8 +98,14 @@ class KnowledgeBaseModel {
 
   static async delete(id: string): Promise<boolean> {
     const rows = await db
-      .delete(schema.knowledgeBasesTable)
-      .where(eq(schema.knowledgeBasesTable.id, id))
+      .update(schema.knowledgeBasesTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.knowledgeBasesTable.id, id),
+          isNull(schema.knowledgeBasesTable.deletedAt),
+        ),
+      )
       .returning({ id: schema.knowledgeBasesTable.id });
 
     return rows.length > 0;
@@ -101,6 +118,7 @@ class KnowledgeBaseModel {
     const normalizedSearch = params.search?.trim();
     const filters = [
       eq(schema.knowledgeBasesTable.organizationId, params.organizationId),
+      isNull(schema.knowledgeBasesTable.deletedAt),
       ...(normalizedSearch
         ? [
             or(
@@ -132,6 +150,7 @@ class KnowledgeBaseModel {
         and(
           eq(schema.knowledgeBasesTable.name, name),
           eq(schema.knowledgeBasesTable.organizationId, organizationId),
+          isNull(schema.knowledgeBasesTable.deletedAt),
         ),
       );
 

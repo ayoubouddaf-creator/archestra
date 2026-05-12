@@ -62,6 +62,7 @@ export const InsertScheduleTriggerSchema = createInsertSchema(
   .omit({
     id: true,
     createdAt: true,
+    deletedAt: true,
   })
   .superRefine(validateScheduleTriggerFields);
 
@@ -71,6 +72,7 @@ export const UpdateScheduleTriggerSchema = createUpdateSchema(
   .omit({
     id: true,
     createdAt: true,
+    deletedAt: true,
   })
   .superRefine((data, ctx) => {
     if (data.cronExpression !== undefined || data.timezone !== undefined) {

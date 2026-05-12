@@ -64,6 +64,7 @@ export const InsertMcpServerSchema = createInsertSchema(schema.mcpServersTable)
     id: true,
     createdAt: true,
     updatedAt: true,
+    deletedAt: true,
   });
 
 export const UpdateMcpServerSchema = createUpdateSchema(schema.mcpServersTable)

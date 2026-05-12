@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import db, { schema } from "@/database";
 import { secretManager } from "@/secrets-manager";
 import {
@@ -90,12 +90,18 @@ class InternalMcpCatalogModel {
       dbItems = await db
         .select()
         .from(schema.internalMcpCatalogTable)
-        .where(inArray(schema.internalMcpCatalogTable.id, accessibleIds))
+        .where(
+          and(
+            inArray(schema.internalMcpCatalogTable.id, accessibleIds),
+            isNull(schema.internalMcpCatalogTable.deletedAt),
+          ),
+        )
         .orderBy(desc(schema.internalMcpCatalogTable.createdAt));
     } else {
       dbItems = await db
         .select()
         .from(schema.internalMcpCatalogTable)
+        .where(isNull(schema.internalMcpCatalogTable.deletedAt))
         .orderBy(desc(schema.internalMcpCatalogTable.createdAt));
     }
 
@@ -153,13 +159,16 @@ class InternalMcpCatalogModel {
           and(
             inArray(schema.internalMcpCatalogTable.id, accessibleIds),
             searchCondition,
+            isNull(schema.internalMcpCatalogTable.deletedAt),
           ),
         );
     } else {
       dbItems = await db
         .select()
         .from(schema.internalMcpCatalogTable)
-        .where(searchCondition);
+        .where(
+          and(searchCondition, isNull(schema.internalMcpCatalogTable.deletedAt)),
+        );
     }
 
     const catalogItems =
@@ -207,7 +216,12 @@ class InternalMcpCatalogModel {
     const [dbItem] = await db
       .select()
       .from(schema.internalMcpCatalogTable)
-      .where(eq(schema.internalMcpCatalogTable.id, id));
+      .where(
+        and(
+          eq(schema.internalMcpCatalogTable.id, id),
+          isNull(schema.internalMcpCatalogTable.deletedAt),
+        ),
+      );
 
     if (!dbItem) {
       return null;
@@ -381,10 +395,16 @@ class InternalMcpCatalogModel {
       await McpServerModel.delete(server.id);
     }
 
-    // Then delete the catalog entry itself
+    // Soft-delete the catalog entry
     const deletedRows = await db
-      .delete(schema.internalMcpCatalogTable)
-      .where(eq(schema.internalMcpCatalogTable.id, id))
+      .update(schema.internalMcpCatalogTable)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(schema.internalMcpCatalogTable.id, id),
+          isNull(schema.internalMcpCatalogTable.deletedAt),
+        ),
+      )
       .returning({ id: schema.internalMcpCatalogTable.id });
 
     return deletedRows.length > 0;
