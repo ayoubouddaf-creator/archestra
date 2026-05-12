@@ -55,6 +55,7 @@ export const InsertConversationSchema = createInsertSchema(
     createdAt: true,
     updatedAt: true,
     deletedAt: true,
+    isStreaming: true,
   })
   .extend({
     // Override agentId to be required for creating conversations

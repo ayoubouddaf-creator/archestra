@@ -403,6 +403,19 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
             );
           }
 
+          // Mark the conversation as actively streaming so the frontend can
+          // show a generating indicator if the user reloads mid-stream.
+          if (conversationId) {
+            ConversationModel.setStreaming(conversationId, true).catch(
+              (error) => {
+                logger.warn(
+                  { error, conversationId },
+                  "Failed to set isStreaming=true on conversation",
+                );
+              },
+            );
+          }
+
           // Create stream with token usage data support
           const response = createUIMessageStreamResponse({
             headers: {
@@ -421,6 +434,10 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                 const shouldPersist = !messagesPersisted && !!conversationId;
                 if (shouldPersist) {
                   messagesPersisted = true;
+                }
+                // Clear streaming flag on stream-level error
+                if (conversationId) {
+                  ConversationModel.setStreaming(conversationId, false).catch(() => {});
                 }
                 (async () => {
                   if (shouldPersist) {
@@ -632,6 +649,9 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                     } else {
                       // Save messages before throwing — this error path runs before
                       // writer.merge(), so onError/onFinish callbacks won't fire.
+                      if (conversationId) {
+                        ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                      }
                       if (!messagesPersisted && conversationId) {
                         messagesPersisted = true;
                         try {
@@ -719,6 +739,11 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                           "Chat stream error occurred",
                         );
 
+                        // Clear streaming flag on error
+                        if (conversationId) {
+                          ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                        }
+
                         // Persist messages despite error so they have a valid ID for editing
                         if (shouldPersist) {
                           try {
@@ -763,6 +788,11 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                     },
                     onFinish: async ({ messages: finalMessages }) => {
                       removeAbortListeners();
+
+                      // Clear streaming flag now that the stream is complete
+                      if (conversationId) {
+                        ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                      }
 
                       // Only persist if not already persisted by onError
                       if (!messagesPersisted && conversationId) {

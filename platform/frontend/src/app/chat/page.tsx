@@ -1815,6 +1815,13 @@ export function ChatPageContent({
                     selectedModel={conversation?.selectedModel ?? initialModel}
                     modelSource={conversationModelSource ?? initialModelSource}
                     chatErrors={conversation?.chatErrors ?? []}
+                    isServerStreaming={
+                      // Show generating indicator when the page was reloaded
+                      // while the backend is still streaming the assistant response.
+                      status === "ready" &&
+                      !!conversation?.isStreaming &&
+                      (conversation?.messages?.at(-1) as { role?: string } | undefined)?.role === "user"
+                    }
                     onUserMessageEdit={(
                       editedMessage,
                       updatedMessages,

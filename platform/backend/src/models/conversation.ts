@@ -481,6 +481,21 @@ class ConversationModel {
   }
 
   /**
+   * Set the isStreaming flag on a conversation.
+   * Called at stream start (true) and stream end/error (false) so the frontend
+   * can show a generating indicator when reloading mid-stream.
+   */
+  static async setStreaming(
+    conversationId: string,
+    isStreaming: boolean,
+  ): Promise<void> {
+    await db
+      .update(schema.conversationsTable)
+      .set({ isStreaming })
+      .where(eq(schema.conversationsTable.id, conversationId));
+  }
+
+  /**
    * Get the agentId for a conversation (without user context checks)
    * Used by internal services that need to look up conversation -> agent mapping
    */

@@ -135,6 +135,8 @@ interface ChatMessagesProps {
   ) => void;
   error?: Error | null;
   chatErrors?: archestraApiTypes.GetChatConversationResponses["200"]["chatErrors"];
+  /** True when the server is still streaming but the page was reloaded mid-stream */
+  isServerStreaming?: boolean;
   /** Callback for tool approval responses (approve/deny) */
   onToolApprovalResponse?: (params: {
     id: string;
@@ -187,6 +189,7 @@ export function ChatMessages({
   onUserMessageEdit,
   error = null,
   chatErrors = [],
+  isServerStreaming = false,
   onToolApprovalResponse,
   agentName,
   selectedModel,
@@ -1230,7 +1233,8 @@ export function ChatMessages({
             />
           ))}
           {(status === "submitted" ||
-            (status === "streaming" && isStreamingStalled)) && (
+            (status === "streaming" && isStreamingStalled) ||
+            isServerStreaming) && (
             <div className="absolute bottom-[-10] left-0">
               <Message from="assistant">
                 <img
