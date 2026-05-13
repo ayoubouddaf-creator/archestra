@@ -131,15 +131,21 @@ export class WhatsAppProvider implements ChatOpsProvider {
   // Webhook interface stubs (WhatsApp is socket-mode only)
   // ────────────────────────────────────────────────────────────
 
-  async validateWebhookRequest(): Promise<boolean> {
+  async validateWebhookRequest(
+    _body?: unknown,
+    _headers?: unknown,
+  ): Promise<boolean> {
     return false; // No webhook — events come from socket
   }
 
-  handleValidationChallenge(): null {
+  handleValidationChallenge(_payload?: unknown): null {
     return null;
   }
 
-  async parseWebhookNotification(): Promise<IncomingChatMessage | null> {
+  async parseWebhookNotification(
+    _body?: unknown,
+    _headers?: unknown,
+  ): Promise<IncomingChatMessage | null> {
     return null; // Not used — messages are delivered via socket events
   }
 
@@ -276,7 +282,7 @@ export class WhatsAppProvider implements ChatOpsProvider {
     return channelId.replace(/@.+$/, ""); // strip @s.whatsapp.net suffix
   }
 
-  parseInteractivePayload(): null {
+  parseInteractivePayload(_payload?: unknown): null {
     return null; // WhatsApp has no rich interactive payloads
   }
 
@@ -292,7 +298,7 @@ export class WhatsAppProvider implements ChatOpsProvider {
     return false;
   }
 
-  async notifyMissingScopes(): Promise<void> {}
+  async notifyMissingScopes(_context?: unknown): Promise<void> {}
 
   async discoverChannels(): Promise<DiscoveredChannel[] | null> {
     return null; // WhatsApp contacts/groups don't have a discoverable channel list
