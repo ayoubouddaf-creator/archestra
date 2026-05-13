@@ -19261,7 +19261,7 @@ export type GetChatConversationResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
-        isStreaming: boolean;
+        isStreaming?: boolean;
         pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
