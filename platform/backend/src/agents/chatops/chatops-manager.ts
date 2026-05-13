@@ -49,6 +49,7 @@ import {
 import MSTeamsProvider from "./ms-teams-provider";
 import SlackProvider from "./slack-provider";
 import { errorMessage, isSlackDmChannel } from "./utils";
+import { WhatsAppProvider } from "./whatsapp-provider";
 
 /**
  * ChatOps Manager - handles chatops provider lifecycle and message processing
@@ -57,6 +58,7 @@ import { errorMessage, isSlackDmChannel } from "./utils";
 export class ChatOpsManager {
   private msTeamsProvider: MSTeamsProvider | null = null;
   private slackProvider: SlackProvider | null = null;
+  private whatsappProvider: WhatsAppProvider | null = null;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private readonly a2aManager: A2AManager;
 
@@ -74,6 +76,10 @@ export class ChatOpsManager {
     return this.slackProvider;
   }
 
+  getWhatsAppProvider(): WhatsAppProvider | null {
+    return this.whatsappProvider;
+  }
+
   getChatOpsProvider(
     providerType: ChatOpsProviderType,
   ): ChatOpsProvider | null {
@@ -82,6 +88,8 @@ export class ChatOpsManager {
         return this.getMSTeamsProvider();
       case "slack":
         return this.getSlackProvider();
+      case "whatsapp":
+        return this.getWhatsAppProvider();
     }
   }
 
@@ -140,7 +148,8 @@ export class ChatOpsManager {
   isAnyProviderConfigured(): boolean {
     return (
       (this.msTeamsProvider?.isConfigured() ?? false) ||
-      (this.slackProvider?.isConfigured() ?? false)
+      (this.slackProvider?.isConfigured() ?? false) ||
+      (this.whatsappProvider?.isConfigured() ?? false)
     );
   }
 
@@ -226,7 +235,7 @@ export class ChatOpsManager {
 
     // Load configs from DB (the single source of truth)
     // Errors are caught individually so a single broken config doesn't prevent other providers from initializing
-    const [msTeamsConfig, slackConfig] = await Promise.all([
+    const [msTeamsConfig, slackConfig, whatsappConfig] = await Promise.all([
       ChatOpsConfigModel.getMsTeamsConfig().catch((error) => {
         logger.error(
           { error: error instanceof Error ? error.message : String(error) },
@@ -238,6 +247,13 @@ export class ChatOpsManager {
         logger.error(
           { error: error instanceof Error ? error.message : String(error) },
           "[ChatOps] Failed to load Slack config, skipping",
+        );
+        return null;
+      }),
+      ChatOpsConfigModel.getWhatsAppConfig().catch((error) => {
+        logger.error(
+          { error: error instanceof Error ? error.message : String(error) },
+          "[ChatOps] Failed to load WhatsApp config, skipping",
         );
         return null;
       }),
@@ -254,6 +270,10 @@ export class ChatOpsManager {
       // access manager capabilities (e.g., getAccessibleChatopsAgents for slash commands)
       this.slackProvider.setEventHandler(this);
     }
+    if (whatsappConfig) {
+      this.whatsappProvider = new WhatsAppProvider(whatsappConfig);
+      this.whatsappProvider.setEventHandler(this);
+    }
 
     if (!this.isAnyProviderConfigured()) {
       return;
@@ -262,6 +282,7 @@ export class ChatOpsManager {
     const providers: { name: string; provider: ChatOpsProvider | null }[] = [
       { name: "MS Teams", provider: this.msTeamsProvider },
       { name: "Slack", provider: this.slackProvider },
+      { name: "WhatsApp", provider: this.whatsappProvider },
     ];
 
     for (const { name, provider } of providers) {
@@ -313,6 +334,10 @@ export class ChatOpsManager {
     if (this.slackProvider) {
       await this.slackProvider.cleanup();
       this.slackProvider = null;
+    }
+    if (this.whatsappProvider) {
+      await this.whatsappProvider.cleanup();
+      this.whatsappProvider = null;
     }
     this.stopCleanupInterval();
   }

@@ -878,9 +878,11 @@ describe("parseArgumentsString", () => {
   });
 
   it("parses a JSON array of strings", () => {
-    expect(
-      parseArgumentsString('["--port", "8080", "--verbose"]'),
-    ).toEqual(["--port", "8080", "--verbose"]);
+    expect(parseArgumentsString('["--port", "8080", "--verbose"]')).toEqual([
+      "--port",
+      "8080",
+      "--verbose",
+    ]);
   });
 
   it("parses a JSON array with leading/trailing whitespace", () => {

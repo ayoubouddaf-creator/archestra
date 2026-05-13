@@ -437,7 +437,9 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                 }
                 // Clear streaming flag on stream-level error
                 if (conversationId) {
-                  ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                  ConversationModel.setStreaming(conversationId, false).catch(
+                    () => {},
+                  );
                 }
                 (async () => {
                   if (shouldPersist) {
@@ -650,7 +652,10 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
                       // Save messages before throwing — this error path runs before
                       // writer.merge(), so onError/onFinish callbacks won't fire.
                       if (conversationId) {
-                        ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                        ConversationModel.setStreaming(
+                          conversationId,
+                          false,
+                        ).catch(() => {});
                       }
                       if (!messagesPersisted && conversationId) {
                         messagesPersisted = true;
@@ -741,7 +746,10 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
                         // Clear streaming flag on error
                         if (conversationId) {
-                          ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                          ConversationModel.setStreaming(
+                            conversationId,
+                            false,
+                          ).catch(() => {});
                         }
 
                         // Persist messages despite error so they have a valid ID for editing
@@ -791,7 +799,10 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
                       // Clear streaming flag now that the stream is complete
                       if (conversationId) {
-                        ConversationModel.setStreaming(conversationId, false).catch(() => {});
+                        ConversationModel.setStreaming(
+                          conversationId,
+                          false,
+                        ).catch(() => {});
                       }
 
                       // Only persist if not already persisted by onError

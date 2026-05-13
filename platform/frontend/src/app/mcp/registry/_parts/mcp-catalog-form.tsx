@@ -1012,7 +1012,7 @@ export function McpCatalogForm({
                         <FormDescription>
                           One argument per line, or a JSON array (e.g.{" "}
                           <code className="text-xs">
-                            {"[\"--port\", \"8080\"]"}
+                            {'["--port", "8080"]'}
                           </code>
                           ).
                         </FormDescription>

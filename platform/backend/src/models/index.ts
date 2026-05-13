@@ -14,6 +14,8 @@ export { default as ChatOpsChannelBindingModel } from "./chatops-channel-binding
 export { default as ChatOpsConfigModel } from "./chatops-config";
 export { default as ChatOpsProcessedMessageModel } from "./chatops-processed-message";
 export { default as ChatOpsThreadAgentOverrideModel } from "./chatops-thread-agent-override";
+export { default as ChatOpsWhatsAppIdentityModel } from "./chatops-whatsapp-identity";
+export { default as ChatOpsWhatsAppSessionModel } from "./chatops-whatsapp-session";
 export { default as ConnectorRunModel } from "./connector-run";
 export { default as ConversationModel } from "./conversation";
 export { default as ConversationChatErrorModel } from "./conversation-chat-error";

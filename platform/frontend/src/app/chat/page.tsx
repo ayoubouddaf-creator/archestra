@@ -39,9 +39,9 @@ import { AppLogo } from "@/components/app-logo";
 import { ButtonWithTooltip } from "@/components/button-with-tooltip";
 import { BrowserPanel } from "@/components/chat/browser-panel";
 import { ChatLinkButton } from "@/components/chat/chat-help-link";
-import { ConvertToScheduledTaskDialog } from "@/components/chat/convert-to-scheduled-task-dialog";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { ConversationArtifactPanel } from "@/components/chat/conversation-artifact";
+import { ConvertToScheduledTaskDialog } from "@/components/chat/convert-to-scheduled-task-dialog";
 import { InitialAgentSelector } from "@/components/chat/initial-agent-selector";
 import { OnboardingWizardButton } from "@/components/chat/onboarding-wizard-button";
 import {
@@ -554,10 +554,16 @@ export function ChatPageContent({
   const lastUserMessageText = useMemo(() => {
     const msgs = conversation?.messages ?? [];
     for (let i = msgs.length - 1; i >= 0; i--) {
-      const msg = msgs[i] as { role?: string; parts?: Array<{ type: string; text?: string }> };
+      const msg = msgs[i] as {
+        role?: string;
+        parts?: Array<{ type: string; text?: string }>;
+      };
       if (msg.role === "user") {
         const textParts = (msg.parts ?? []).filter((p) => p.type === "text");
-        return textParts.map((p) => p.text ?? "").join("\n").trim();
+        return textParts
+          .map((p) => p.text ?? "")
+          .join("\n")
+          .trim();
       }
     }
     return "";
@@ -1861,7 +1867,11 @@ export function ChatPageContent({
                       // while the backend is still streaming the assistant response.
                       status === "ready" &&
                       !!conversation?.isStreaming &&
-                      (conversation?.messages?.at(-1) as { role?: string } | undefined)?.role === "user"
+                      (
+                        conversation?.messages?.at(-1) as
+                          | { role?: string }
+                          | undefined
+                      )?.role === "user"
                     }
                     onUserMessageEdit={(
                       editedMessage,

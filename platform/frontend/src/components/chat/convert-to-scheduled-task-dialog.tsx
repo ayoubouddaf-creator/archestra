@@ -49,7 +49,8 @@ export function ConvertToScheduledTaskDialog({
   const agentOptions = agents.map((agent) => ({
     value: agent.id,
     label: agent.name || "Untitled agent",
-    description: agent.scope === "personal" ? "Personal agent" : `${agent.scope} agent`,
+    description:
+      agent.scope === "personal" ? "Personal agent" : `${agent.scope} agent`,
   }));
 
   const [name, setName] = useState(

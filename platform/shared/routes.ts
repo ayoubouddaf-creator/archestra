@@ -418,6 +418,9 @@ export const RouteId = {
   CreateChatOpsDmBinding: "createChatOpsDmBinding",
   UpdateChatOpsConfigInQuickstart: "updateChatOpsConfigInQuickstart",
   UpdateSlackChatOpsConfig: "updateSlackChatOpsConfig",
+  UpdateWhatsAppChatOpsConfig: "updateWhatsAppChatOpsConfig",
+  GetWhatsAppQr: "getWhatsAppQr",
+  DeleteWhatsAppSession: "deleteWhatsAppSession",
   RefreshChatOpsChannelDiscovery: "refreshChatOpsChannelDiscovery",
 
   // Knowledge Base Routes

@@ -167,7 +167,10 @@ class InternalMcpCatalogModel {
         .select()
         .from(schema.internalMcpCatalogTable)
         .where(
-          and(searchCondition, isNull(schema.internalMcpCatalogTable.deletedAt)),
+          and(
+            searchCondition,
+            isNull(schema.internalMcpCatalogTable.deletedAt),
+          ),
         );
     }
 

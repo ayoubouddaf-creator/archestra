@@ -20,6 +20,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentIcon } from "@/components/agent-icon";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { ScheduleSection } from "@/components/schedule-section";
 import { SearchInput } from "@/components/search-input";
 import { TableRowActions } from "@/components/table-row-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,7 +54,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserSearchableMultiSelect } from "@/components/user-searchable-multi-select";
-import { ScheduleSection } from "@/components/schedule-section";
 import { useProfiles } from "@/lib/agent.query";
 import { useHasPermissions, useSession } from "@/lib/auth/auth.query";
 import { useOrganizationMembers } from "@/lib/organization.query";
@@ -1083,7 +1083,6 @@ function ScheduleTriggerCreateButton({
     </PermissionButton>
   );
 }
-
 
 function ScheduleTriggerFormDialog({
   open,

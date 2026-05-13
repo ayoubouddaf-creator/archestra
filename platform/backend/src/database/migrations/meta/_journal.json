@@ -1646,6 +1646,27 @@
       "when": 1778189799447,
       "tag": "0234_cool_colossus",
       "breakpoints": true
+    },
+    {
+      "idx": 235,
+      "version": "7",
+      "when": 1778189800447,
+      "tag": "0235_soft_delete_all_objects",
+      "breakpoints": true
+    },
+    {
+      "idx": 236,
+      "version": "7",
+      "when": 1778189801447,
+      "tag": "0236_conversation_is_streaming",
+      "breakpoints": true
+    },
+    {
+      "idx": 237,
+      "version": "7",
+      "when": 1778189802447,
+      "tag": "0237_whatsapp_chatops",
+      "breakpoints": true
     }
   ]
 }

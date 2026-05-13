@@ -5,7 +5,11 @@ import type { A2AAttachment } from "@/agents/a2a-executor";
  * ChatOps provider types enum
  * Used for PG ENUM in database schema
  */
-export const ChatOpsProviderTypeSchema = z.enum(["ms-teams", "slack"]);
+export const ChatOpsProviderTypeSchema = z.enum([
+  "ms-teams",
+  "slack",
+  "whatsapp",
+]);
 export type ChatOpsProviderType = z.infer<typeof ChatOpsProviderTypeSchema>;
 
 export const ChatOpsConnectionModeSchema = z.enum(["webhook", "socket"]);
@@ -517,4 +521,23 @@ export interface SlackDbConfig {
   appId: string;
   connectionMode?: ChatOpsConnectionMode;
   appLevelToken?: string;
+}
+
+/** WhatsApp config stored as a DB secret */
+export interface WhatsAppDbConfig {
+  enabled: boolean;
+  /** Display name shown to users when the bot sends messages */
+  botName?: string;
+}
+
+/**
+ * WhatsApp phone-to-email identity mapping.
+ * Maps a WhatsApp JID (e.g. "15551234567@s.whatsapp.net") to an Archestra user email.
+ * Stored in the chatops_whatsapp_identity table.
+ */
+export interface WhatsAppIdentityMapping {
+  /** WhatsApp JID (phone@s.whatsapp.net or phone@c.us) */
+  jid: string;
+  /** Archestra user email */
+  email: string;
 }

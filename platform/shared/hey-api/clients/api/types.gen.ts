@@ -19261,6 +19261,7 @@ export type GetChatConversationResponses = {
             [key: string]: unknown;
         } | Array<unknown> | null;
         artifact: string | null;
+        isStreaming: boolean;
         pinnedAt: string | null;
         createdAt: string;
         updatedAt: string;
@@ -20996,7 +20997,7 @@ export type GetChatOpsStatusResponses = {
      */
     200: {
         providers: Array<{
-            id: 'ms-teams' | 'slack';
+            id: 'ms-teams' | 'slack' | 'whatsapp';
             displayName: string;
             configured: boolean;
             credentials?: {
@@ -21698,7 +21699,7 @@ export type UpdateSlackChatOpsConfigResponse = UpdateSlackChatOpsConfigResponses
 
 export type RefreshChatOpsChannelDiscoveryData = {
     body: {
-        provider: 'ms-teams' | 'slack';
+        provider: 'ms-teams' | 'slack' | 'whatsapp';
     };
     path?: never;
     query?: never;
@@ -49200,3 +49201,144 @@ export type GetTeamVaultSecretKeysResponses = {
 };
 
 export type GetTeamVaultSecretKeysResponse = GetTeamVaultSecretKeysResponses[keyof GetTeamVaultSecretKeysResponses];
+
+export type UpdateWhatsAppChatOpsConfigData = {
+    body: {
+        enabled: boolean;
+        botName?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/chatops/config/whatsapp';
+};
+
+export type UpdateWhatsAppChatOpsConfigErrors = {
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+            internal_code?: string;
+        };
+    };
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+            internal_code?: string;
+        };
+    };
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+            internal_code?: string;
+        };
+    };
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+            internal_code?: string;
+        };
+    };
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+            internal_code?: string;
+        };
+    };
+};
+
+export type UpdateWhatsAppChatOpsConfigError = UpdateWhatsAppChatOpsConfigErrors[keyof UpdateWhatsAppChatOpsConfigErrors];
+
+export type UpdateWhatsAppChatOpsConfigResponses = {
+    200: {
+        success: boolean;
+    };
+};
+
+export type UpdateWhatsAppChatOpsConfigResponse = UpdateWhatsAppChatOpsConfigResponses[keyof UpdateWhatsAppChatOpsConfigResponses];
+
+export type GetWhatsAppQrData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/chatops/whatsapp/qr';
+};
+
+export type GetWhatsAppQrErrors = {
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+            internal_code?: string;
+        };
+    };
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+            internal_code?: string;
+        };
+    };
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+            internal_code?: string;
+        };
+    };
+};
+
+export type GetWhatsAppQrError = GetWhatsAppQrErrors[keyof GetWhatsAppQrErrors];
+
+export type GetWhatsAppQrResponses = {
+    200: {
+        qr: string | null;
+        connected: boolean;
+    };
+};
+
+export type GetWhatsAppQrResponse = GetWhatsAppQrResponses[keyof GetWhatsAppQrResponses];
+
+export type DeleteWhatsAppSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/chatops/whatsapp/session';
+};
+
+export type DeleteWhatsAppSessionErrors = {
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+            internal_code?: string;
+        };
+    };
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+            internal_code?: string;
+        };
+    };
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+            internal_code?: string;
+        };
+    };
+};
+
+export type DeleteWhatsAppSessionError = DeleteWhatsAppSessionErrors[keyof DeleteWhatsAppSessionErrors];
+
+export type DeleteWhatsAppSessionResponses = {
+    200: {
+        success: boolean;
+    };
+};
+
+export type DeleteWhatsAppSessionResponse = DeleteWhatsAppSessionResponses[keyof DeleteWhatsAppSessionResponses];

@@ -1341,6 +1341,90 @@ const chatopsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   /**
+   * Update WhatsApp chatops config.
+   * Enabling WhatsApp starts the Baileys socket and begins the QR-pairing flow.
+   */
+  fastify.put(
+    "/api/chatops/config/whatsapp",
+    {
+      schema: {
+        operationId: RouteId.UpdateWhatsAppChatOpsConfig,
+        description: "Update WhatsApp chatops configuration",
+        tags: ["ChatOps"],
+        body: z.object({
+          enabled: z.boolean(),
+          botName: z.string().max(64).optional(),
+        }),
+        response: constructResponseSchema(z.object({ success: z.boolean() })),
+      },
+    },
+    async (request, reply) => {
+      const { enabled, botName } = request.body;
+
+      const existing = await ChatOpsConfigModel.getWhatsAppConfig();
+      const merged = {
+        enabled,
+        botName: botName ?? existing?.botName ?? "Archestra",
+      };
+
+      await ChatOpsConfigModel.saveWhatsAppConfig(merged);
+      await chatOpsManager.reinitialize();
+
+      return reply.send({ success: true });
+    },
+  );
+
+  /**
+   * Get the current WhatsApp QR code for pairing.
+   * Returns null qr when already connected.
+   */
+  fastify.get(
+    "/api/chatops/whatsapp/qr",
+    {
+      schema: {
+        operationId: RouteId.GetWhatsAppQr,
+        description: "Get the current WhatsApp QR code for pairing",
+        tags: ["ChatOps"],
+        response: constructResponseSchema(
+          z.object({
+            qr: z.string().nullable(),
+            connected: z.boolean(),
+          }),
+        ),
+      },
+    },
+    async (_, reply) => {
+      const provider = chatOpsManager.getWhatsAppProvider();
+      return reply.send({
+        qr: provider?.getCurrentQr() ?? null,
+        connected: provider?.isConnected() ?? false,
+      });
+    },
+  );
+
+  /**
+   * Disconnect WhatsApp and clear the session (full logout).
+   */
+  fastify.delete(
+    "/api/chatops/whatsapp/session",
+    {
+      schema: {
+        operationId: RouteId.DeleteWhatsAppSession,
+        description: "Disconnect WhatsApp and clear the session",
+        tags: ["ChatOps"],
+        response: constructResponseSchema(z.object({ success: z.boolean() })),
+      },
+    },
+    async (_, reply) => {
+      const provider = chatOpsManager.getWhatsAppProvider();
+      if (provider) {
+        await provider.logout();
+      }
+      return reply.send({ success: true });
+    },
+  );
+
+  /**
    * Refresh channel discovery for a provider.
    * Clears the TTL cache, then triggers immediate discovery if the provider
    * supports it (e.g., Slack). Otherwise channels are re-discovered on the
@@ -1465,6 +1549,17 @@ async function getProviderInfo(providerType: ChatOpsProviderType): Promise<{
                 teamId: provider.getWorkspaceId() ?? undefined,
               }
             : undefined,
+      };
+    }
+    case "whatsapp": {
+      const provider = chatOpsManager.getWhatsAppProvider();
+      const dbConfig = await ChatOpsConfigModel.getWhatsAppConfig();
+      return {
+        id: "whatsapp",
+        displayName: "WhatsApp",
+        configured: provider?.isConfigured() ?? false,
+        credentials: {},
+        dmInfo: dbConfig?.enabled ? { botUserId: "whatsapp" } : undefined,
       };
     }
   }
