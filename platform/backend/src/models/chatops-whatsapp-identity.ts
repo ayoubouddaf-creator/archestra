@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db, schema } from "@/database";
+import db, { schema } from "@/database";
 
 class ChatOpsWhatsAppIdentityModel {
   /**

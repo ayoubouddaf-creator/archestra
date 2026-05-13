@@ -317,6 +317,7 @@ class ToolModel {
           schema.toolsTable.policiesAutoConfiguredReasoning,
         policiesAutoConfiguredModel:
           schema.toolsTable.policiesAutoConfiguredModel,
+        deletedAt: schema.toolsTable.deletedAt,
         agent: {
           id: schema.agentsTable.id,
           name: schema.agentsTable.name,

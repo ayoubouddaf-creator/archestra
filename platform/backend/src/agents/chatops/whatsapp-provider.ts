@@ -573,7 +573,7 @@ async function createPostgresAuthState(organizationId: string): Promise<{
             if (type === "pre-key") {
               data[id] = proto.Message.decode(
                 Buffer.from(value as ArrayBuffer),
-              ) as SignalDataTypeMap[typeof type];
+              ) as unknown as SignalDataTypeMap[typeof type];
             } else {
               data[id] = value as SignalDataTypeMap[typeof type];
             }

@@ -52,7 +52,7 @@ vi.mock("@/models/chatops-config", () => ({
   },
 }));
 
-import WhatsAppProvider from "./whatsapp-provider";
+import { WhatsAppProvider } from "./whatsapp-provider";
 
 // =============================================================================
 // Helpers

@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { db, schema } from "@/database";
+import db, { schema } from "@/database";
 
 class ChatOpsWhatsAppSessionModel {
   /**
@@ -46,7 +46,9 @@ class ChatOpsWhatsAppSessionModel {
           eq(schema.chatopsWhatsappSessionTable.category, params.category),
         ),
       );
-    return Object.fromEntries(rows.map((r) => [r.keyId, r.value]));
+    return Object.fromEntries(
+      rows.map((r: { keyId: string; value: unknown }) => [r.keyId, r.value]),
+    );
   }
 
   /**
