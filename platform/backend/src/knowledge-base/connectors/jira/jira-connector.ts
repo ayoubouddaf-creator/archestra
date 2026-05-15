@@ -135,6 +135,7 @@ export class JiraConnector extends BaseConnector {
     checkpoint: Record<string, unknown> | null;
     startTime?: Date;
     endTime?: Date;
+    fetchPermissions?: boolean;
   }): AsyncGenerator<ConnectorSyncBatch> {
     const parsed = parseJiraConfig(params.config);
     if (!parsed) {
@@ -153,14 +154,27 @@ export class JiraConnector extends BaseConnector {
         projectKey: parsed.projectKey,
         jql,
         checkpoint,
+        fetchPermissions: params.fetchPermissions,
       },
       "Starting sync",
     );
 
     if (parsed.isCloud) {
-      yield* this.syncCloud(parsed, params.credentials, jql, checkpoint);
+      yield* this.syncCloud(
+        parsed,
+        params.credentials,
+        jql,
+        checkpoint,
+        params.fetchPermissions,
+      );
     } else {
-      yield* this.syncServer(parsed, params.credentials, jql, checkpoint);
+      yield* this.syncServer(
+        parsed,
+        params.credentials,
+        jql,
+        checkpoint,
+        params.fetchPermissions,
+      );
     }
   }
 
@@ -171,11 +185,17 @@ export class JiraConnector extends BaseConnector {
     credentials: ConnectorCredentials,
     jql: string,
     checkpoint: JiraCheckpoint,
+    fetchPermissions?: boolean,
   ): AsyncGenerator<ConnectorSyncBatch> {
     const client = createV3Client(config, credentials, this.log);
     let nextPageToken: string | undefined;
     let hasMore = true;
     let batchIndex = 0;
+    // Cache project ACLs to avoid redundant API calls across batches
+    const projectAclCache = new Map<
+      string,
+      { users: string[]; isPublic: boolean }
+    >();
 
     while (hasMore) {
       await this.rateLimit();
@@ -192,7 +212,19 @@ export class JiraConnector extends BaseConnector {
           });
 
         const issues = searchResult.issues ?? [];
-        const documents = issuesToDocuments(issues, config);
+        const documents = await issuesToDocumentsWithPermissions(
+          issues,
+          config,
+          fetchPermissions
+            ? async (projectKey) =>
+                fetchProjectPermissionsCloud(
+                  client,
+                  projectKey,
+                  projectAclCache,
+                  this.log,
+                )
+            : undefined,
+        );
 
         nextPageToken = searchResult.nextPageToken ?? undefined;
         hasMore = !!nextPageToken;
@@ -235,11 +267,16 @@ export class JiraConnector extends BaseConnector {
     credentials: ConnectorCredentials,
     jql: string,
     checkpoint: JiraCheckpoint,
+    fetchPermissions?: boolean,
   ): AsyncGenerator<ConnectorSyncBatch> {
     const client = createV2Client(config, credentials, this.log);
     let startAt = 0;
     let hasMore = true;
     let batchIndex = 0;
+    const projectAclCache = new Map<
+      string,
+      { users: string[]; isPublic: boolean }
+    >();
 
     while (hasMore) {
       await this.rateLimit();
@@ -256,7 +293,19 @@ export class JiraConnector extends BaseConnector {
           });
 
         const issues = searchResult.issues ?? [];
-        const documents = issuesToDocuments(issues, config);
+        const documents = await issuesToDocumentsWithPermissions(
+          issues,
+          config,
+          fetchPermissions
+            ? async (projectKey) =>
+                fetchProjectPermissionsServer(
+                  client,
+                  projectKey,
+                  projectAclCache,
+                  this.log,
+                )
+            : undefined,
+        );
 
         startAt += issues.length;
         hasMore =
@@ -363,22 +412,36 @@ function buildJiraMiddlewares(log: pino.Logger) {
   };
 }
 
-function issuesToDocuments(
+async function issuesToDocumentsWithPermissions(
   // biome-ignore lint/suspicious/noExplicitAny: SDK issue types vary between v2/v3
   issues: any[],
   config: JiraConfig,
-): ConnectorDocument[] {
+  fetchProjectAcl?: (
+    projectKey: string,
+  ) => Promise<{ users: string[]; isPublic: boolean }>,
+): Promise<ConnectorDocument[]> {
   const documents: ConnectorDocument[] = [];
   for (const issue of issues) {
     if (shouldSkipIssue(issue, config.labelsToSkip)) continue;
-    documents.push(
-      issueToDocument({
-        issue,
-        baseUrl: config.jiraBaseUrl,
-        isCloud: config.isCloud,
-        commentEmailBlacklist: config.commentEmailBlacklist,
-      }),
-    );
+    const doc = issueToDocument({
+      issue,
+      baseUrl: config.jiraBaseUrl,
+      isCloud: config.isCloud,
+      commentEmailBlacklist: config.commentEmailBlacklist,
+    });
+
+    if (fetchProjectAcl) {
+      const projectKey: string = issue.fields?.project?.key;
+      if (projectKey) {
+        const acl = await fetchProjectAcl(projectKey);
+        doc.permissions = {
+          isPublic: acl.isPublic,
+          users: acl.users,
+        };
+      }
+    }
+
+    documents.push(doc);
   }
   return documents;
 }
@@ -470,6 +533,146 @@ function extractJiraErrorDetails(
   }
 
   return details;
+}
+
+/**
+ * Fetch all user emails with BROWSE_PROJECTS permission for a Jira Cloud project.
+ * Results are cached per project key to avoid redundant API calls within a sync session.
+ */
+async function fetchProjectPermissionsCloud(
+  client: Version3Client,
+  projectKey: string,
+  cache: Map<string, { users: string[]; isPublic: boolean }>,
+  log: pino.Logger,
+): Promise<{ users: string[]; isPublic: boolean }> {
+  if (cache.has(projectKey)) {
+    // biome-ignore lint/style/noNonNullAssertion: cache.has guards this
+    return cache.get(projectKey)!;
+  }
+
+  try {
+    // Fetch all project roles
+    // biome-ignore lint/suspicious/noExplicitAny: jira.js type varies
+    const rolesResponse = (await client.projectRoles.getProjectRoles({
+      projectIdOrKey: projectKey,
+    })) as Record<string, unknown>;
+
+    const roleUrls = Object.values(rolesResponse).filter(
+      (v): v is string => typeof v === "string",
+    );
+
+    const userEmails = new Set<string>();
+
+    // Fetch members for each role
+    await Promise.all(
+      roleUrls.map(async (roleUrl) => {
+        const roleIdMatch = roleUrl.match(/\/role\/(\d+)$/);
+        if (!roleIdMatch) return;
+        const roleId = Number(roleIdMatch[1]);
+        try {
+          const roleDetail = await client.projectRoles.getProjectRole({
+            projectIdOrKey: projectKey,
+            id: roleId,
+          });
+          // biome-ignore lint/suspicious/noExplicitAny: jira.js role detail
+          for (const actor of (roleDetail.actors as any[]) ?? []) {
+            if (actor.type === "atlassian-user-role-actor" && actor.actorUser?.accountId) {
+              // For email, we use the actor's displayName email if available, or fetch user
+              if (actor.actorUser.emailAddress) {
+                userEmails.add(actor.actorUser.emailAddress);
+              }
+            }
+          }
+        } catch (err) {
+          log.debug(
+            { projectKey, roleId, error: String(err) },
+            "Failed to fetch role details for ACL",
+          );
+        }
+      }),
+    );
+
+    // Jira Cloud: if no roles found or project has open access, treat as public
+    const result = {
+      users: [...userEmails],
+      isPublic: userEmails.size === 0,
+    };
+    cache.set(projectKey, result);
+    log.debug({ projectKey, userCount: result.users.length, isPublic: result.isPublic }, "Fetched project ACL (cloud)");
+    return result;
+  } catch (err) {
+    log.warn({ projectKey, error: String(err) }, "Failed to fetch project permissions, defaulting to public");
+    const fallback = { users: [], isPublic: true };
+    cache.set(projectKey, fallback);
+    return fallback;
+  }
+}
+
+/**
+ * Fetch all user emails with project access for a Jira Server/DC project.
+ * Results are cached per project key.
+ */
+async function fetchProjectPermissionsServer(
+  client: Version2Client,
+  projectKey: string,
+  cache: Map<string, { users: string[]; isPublic: boolean }>,
+  log: pino.Logger,
+): Promise<{ users: string[]; isPublic: boolean }> {
+  if (cache.has(projectKey)) {
+    // biome-ignore lint/style/noNonNullAssertion: cache.has guards this
+    return cache.get(projectKey)!;
+  }
+
+  try {
+    // biome-ignore lint/suspicious/noExplicitAny: jira.js type varies
+    const rolesResponse = (await client.projectRoles.getProjectRoles({
+      projectIdOrKey: projectKey,
+    })) as Record<string, unknown>;
+
+    const roleUrls = Object.values(rolesResponse).filter(
+      (v): v is string => typeof v === "string",
+    );
+
+    const userEmails = new Set<string>();
+
+    await Promise.all(
+      roleUrls.map(async (roleUrl) => {
+        const roleIdMatch = roleUrl.match(/\/role\/(\d+)$/);
+        if (!roleIdMatch) return;
+        const roleId = Number(roleIdMatch[1]);
+        try {
+          const roleDetail = await client.projectRoles.getProjectRole({
+            projectIdOrKey: projectKey,
+            id: roleId,
+          });
+          // biome-ignore lint/suspicious/noExplicitAny: jira.js role detail
+          for (const actor of (roleDetail.actors as any[]) ?? []) {
+            if (actor.type === "atlassian-user-role-actor" && actor.actorUser?.emailAddress) {
+              userEmails.add(actor.actorUser.emailAddress);
+            }
+          }
+        } catch (err) {
+          log.debug(
+            { projectKey, roleId, error: String(err) },
+            "Failed to fetch role details for ACL",
+          );
+        }
+      }),
+    );
+
+    const result = {
+      users: [...userEmails],
+      isPublic: userEmails.size === 0,
+    };
+    cache.set(projectKey, result);
+    log.debug({ projectKey, userCount: result.users.length, isPublic: result.isPublic }, "Fetched project ACL (server)");
+    return result;
+  } catch (err) {
+    log.warn({ projectKey, error: String(err) }, "Failed to fetch project permissions, defaulting to public");
+    const fallback = { users: [], isPublic: true };
+    cache.set(projectKey, fallback);
+    return fallback;
+  }
 }
 
 function parseJiraConfig(config: Record<string, unknown>): JiraConfig | null {

@@ -526,5 +526,11 @@ export interface Connector {
      * (e.g. images) only when the embedding model can handle it.
      */
     embeddingInputModalities?: ModelInputModality[];
+    /**
+     * When true, connectors should fetch and populate `ConnectorDocument.permissions`
+     * with access control data from the source system (e.g. project roles in Jira,
+     * page restrictions in Confluence). Used when visibility is "auto-sync-permissions".
+     */
+    fetchPermissions?: boolean;
   }): AsyncGenerator<ConnectorSyncBatch>;
 }

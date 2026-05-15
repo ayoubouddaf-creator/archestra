@@ -1,9 +1,59 @@
 import { KbChunkModel, KbDocumentModel } from "@/models";
 import { describe, expect, test } from "@/test";
 import {
+  buildDocumentAclFromPermissions,
   didKnowledgeSourceAclInputsChange,
   knowledgeSourceAccessControlService,
 } from "./source-access-control";
+
+describe("buildDocumentAclFromPermissions", () => {
+  test("returns org:* when isPublic is true", () => {
+    expect(buildDocumentAclFromPermissions({ isPublic: true })).toEqual([
+      "org:*",
+    ]);
+  });
+
+  test("returns org:* when isPublic is true even with users and groups", () => {
+    expect(
+      buildDocumentAclFromPermissions({
+        isPublic: true,
+        users: ["alice@example.com"],
+        groups: ["engineers"],
+      }),
+    ).toEqual(["org:*"]);
+  });
+
+  test("returns user_email entries for each user email", () => {
+    expect(
+      buildDocumentAclFromPermissions({
+        users: ["alice@example.com", "bob@example.com"],
+      }),
+    ).toEqual(["user_email:alice@example.com", "user_email:bob@example.com"]);
+  });
+
+  test("returns group entries for each group name", () => {
+    expect(
+      buildDocumentAclFromPermissions({ groups: ["engineers", "admins"] }),
+    ).toEqual(["group:engineers", "group:admins"]);
+  });
+
+  test("combines user_email and group entries", () => {
+    expect(
+      buildDocumentAclFromPermissions({
+        users: ["alice@example.com"],
+        groups: ["engineers"],
+      }),
+    ).toEqual(["user_email:alice@example.com", "group:engineers"]);
+  });
+
+  test("returns empty array when no permissions provided", () => {
+    expect(buildDocumentAclFromPermissions({})).toEqual([]);
+  });
+
+  test("returns empty array when isPublic is false and no users/groups", () => {
+    expect(buildDocumentAclFromPermissions({ isPublic: false })).toEqual([]);
+  });
+});
 
 describe("knowledgeSourceAccessControlService", () => {
   test("does not report ACL changes when visibility inputs are unchanged", () => {

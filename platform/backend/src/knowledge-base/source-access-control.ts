@@ -30,18 +30,42 @@ interface KnowledgeSourceAccessControlContext {
 function buildDocumentAccessControlList(params: {
   visibility: KnowledgeSourceVisibility;
   teamIds: string[];
-  permissions?: {
-    users?: string[];
-    groups?: string[];
-    isPublic?: boolean;
-  };
 }): AclEntry[] {
   switch (params.visibility) {
     case "org-wide":
       return ["org:*"];
     case "team-scoped":
       return params.teamIds.map((id): AclEntry => `team:${id}`);
+    case "auto-sync-permissions":
+      // Per-document ACLs are built from source system permissions at sync time.
+      // Return org:* as a safe fallback (overridden per-document in connector-sync).
+      return ["org:*"];
   }
+}
+
+/**
+ * Build document-level ACL from permissions extracted from the source system.
+ * Used when the connector visibility is "auto-sync-permissions".
+ */
+export function buildDocumentAclFromPermissions(permissions: {
+  users?: string[];
+  groups?: string[];
+  isPublic?: boolean;
+}): AclEntry[] {
+  if (permissions.isPublic) {
+    return ["org:*"];
+  }
+
+  const acl: AclEntry[] = [];
+  for (const email of permissions.users ?? []) {
+    acl.push(`user_email:${email}`);
+  }
+  for (const group of permissions.groups ?? []) {
+    acl.push(`group:${group}`);
+  }
+  // If neither users nor groups are specified and not public, deny all access
+  // by returning an empty ACL (no chunk will match any user).
+  return acl;
 }
 
 export function buildUserAccessControlList(params: {
@@ -162,6 +186,12 @@ class KnowledgeSourceAccessControlService {
     source: VisibilityScopedKnowledgeSource,
   ) {
     if (accessControl.canReadAll) {
+      return true;
+    }
+
+    // auto-sync-permissions: connector is visible to all; document-level
+    // ACLs (user_email / group entries) handle per-user filtering at query time.
+    if (source.visibility === "auto-sync-permissions") {
       return true;
     }
 

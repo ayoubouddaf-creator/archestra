@@ -24,7 +24,10 @@ import {
 } from "./connectors/base-connector";
 import { getConnector } from "./connectors/registry";
 import { resolveEmbeddingConfig } from "./kb-llm-client";
-import { knowledgeSourceAccessControlService } from "./source-access-control";
+import {
+  buildDocumentAclFromPermissions,
+  knowledgeSourceAccessControlService,
+} from "./source-access-control";
 
 /**
  * Service that orchestrates the sync of data from external connectors
@@ -48,6 +51,9 @@ class ConnectorSyncService {
     if (!connector) {
       throw new Error(`Connector not found: ${connectorId}`);
     }
+
+    const isAutoSyncPermissions =
+      connector.visibility === "auto-sync-permissions";
 
     // Load credentials from secrets manager
     const [credentials, documentAcl] = await Promise.all([
@@ -154,6 +160,7 @@ class ConnectorSyncService {
         credentials,
         checkpoint: connector.checkpoint as Record<string, unknown> | null,
         embeddingInputModalities,
+        fetchPermissions: isAutoSyncPermissions,
       });
 
       for await (const batch of syncGenerator) {
@@ -161,12 +168,19 @@ class ConnectorSyncService {
         for (const doc of batch.documents) {
           documentsProcessed++;
           try {
+            // When visibility is "auto-sync-permissions", use per-document ACL
+            // extracted from the source system; otherwise use connector-level ACL.
+            const docAcl =
+              isAutoSyncPermissions && doc.permissions
+                ? buildDocumentAclFromPermissions(doc.permissions)
+                : documentAcl;
+
             const result = await this.ingestDocument({
               doc,
               connectorId,
               connectorType: connector.connectorType,
               organizationId: connector.organizationId,
-              acl: documentAcl,
+              acl: docAcl,
               log: runLog,
             });
             if (result.ingested) {

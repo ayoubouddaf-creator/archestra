@@ -125,6 +125,7 @@ export class ConfluenceConnector extends BaseConnector {
     checkpoint: Record<string, unknown> | null;
     startTime?: Date;
     endTime?: Date;
+    fetchPermissions?: boolean;
   }): AsyncGenerator<ConnectorSyncBatch> {
     const parsed = parseConfluenceConfig(params.config);
     if (!parsed) {
@@ -145,6 +146,7 @@ export class ConfluenceConnector extends BaseConnector {
         spaceKeys: parsed.spaceKeys,
         cql,
         checkpoint,
+        fetchPermissions: params.fetchPermissions,
       },
       "Starting sync",
     );
@@ -198,9 +200,19 @@ export class ConfluenceConnector extends BaseConnector {
             continue;
           }
 
-          documents.push(
-            pageToDocument(page, parsed.confluenceUrl, parsed.isCloud),
-          );
+          const doc = pageToDocument(page, parsed.confluenceUrl, parsed.isCloud);
+
+          if (params.fetchPermissions && page.id) {
+            const permissions = await fetchPagePermissions(
+              client,
+              page.id,
+              parsed.isCloud,
+              this.log,
+            );
+            doc.permissions = permissions;
+          }
+
+          documents.push(doc);
         }
 
         const nextUrl: string | undefined = searchResult._links?.next;
@@ -434,6 +446,65 @@ function pageToDocument(
     },
     updatedAt: page.version?.when ? new Date(page.version.when) : undefined,
   };
+}
+
+/**
+ * Fetch read restrictions for a Confluence page and map them to permission entries.
+ * If the page has no restrictions, it is treated as publicly accessible within the org.
+ * For pages with restrictions, user emails and group names are extracted.
+ */
+async function fetchPagePermissions(
+  // biome-ignore lint/suspicious/noExplicitAny: confluence.js client type
+  client: any,
+  pageId: string,
+  isCloud: boolean,
+  log: pino.Logger,
+): Promise<{ users: string[]; groups: string[]; isPublic: boolean }> {
+  try {
+    // biome-ignore lint/suspicious/noExplicitAny: SDK response type
+    let restriction: any;
+
+    if (isCloud) {
+      restriction = await client.contentRestrictions.getRestrictionsByOperation({
+        id: pageId,
+        operationKey: "read",
+        expand: ["restrictions.user", "restrictions.group"],
+      });
+    } else {
+      restriction = await client.sendRequest(
+        {
+          url: `/api/content/${pageId}/restriction/byOperation/read`,
+          method: "GET",
+          params: { expand: ["restrictions.user", "restrictions.group"] },
+        },
+        // biome-ignore lint/suspicious/noExplicitAny: SDK requires callback arg
+        undefined as any,
+      );
+    }
+
+    const users: string[] =
+      restriction?.restrictions?.user?.results
+        ?.map((u: { email?: string; username?: string }) => u.email ?? u.username ?? "")
+        .filter(Boolean) ?? [];
+
+    const groups: string[] =
+      restriction?.restrictions?.group?.results
+        ?.map((g: { name?: string }) => g.name ?? "")
+        .filter(Boolean) ?? [];
+
+    // If no user/group restrictions → page is accessible to all org members
+    if (users.length === 0 && groups.length === 0) {
+      return { users: [], groups: [], isPublic: true };
+    }
+
+    return { users, groups, isPublic: false };
+  } catch (err) {
+    log.debug(
+      { pageId, error: String(err) },
+      "Failed to fetch page restrictions, defaulting to public",
+    );
+    return { users: [], groups: [], isPublic: true };
+  }
 }
 
 /**
